@@ -1,0 +1,31 @@
+---
+- name: Linux Security Baseline
+  hosts: servers
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Install UFW firewall
+      apt:
+        name: ufw
+        state: present
+      tags: firewall
+
+    - name: Configure firewall defaults
+      ufw:
+        state: enabled
+        policy: deny
+      tags: firewall
+
+    - name: Allow SSH with rate limiting
+      ufw:
+        rule: limit
+        port: ssh
+      tags: firewall
+
+    - name: Disable guest login
+      lineinfile:
+        path: /etc/lightdm/lightdm.conf
+        regexp: '^allow-guest'
+        line: 'allow-guest=false'
+      tags: hardening
