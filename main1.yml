@@ -1,0 +1,49 @@
+---
+- name: Verify Linux Security Baseline
+  hosts: servers
+  gather_facts: no
+  tasks:
+
+    - name: Check UFW package is installed
+      ansible.builtin.stat:
+        path: /usr/sbin/ufw
+      register: ufw_stat
+
+    - name: Assert UFW binary exists
+      ansible.builtin.assert:
+        that:
+          - ufw_stat.stat.exists
+        fail_msg: "❌ UFW is not installed"
+        success_msg: "✅ UFW is installed"
+
+    - name: Get UFW status
+      ansible.builtin.shell: sudo ufw status verbose
+      register: ufw_status
+      changed_when: false
+
+    - name: Assert UFW is active with deny policy
+      ansible.builtin.assert:
+        that:
+          - "'Status: active' in ufw_status.stdout"
+          - "'Default: deny (incoming)' in ufw_status.stdout"
+        fail_msg: "❌ UFW not active or default policy not deny"
+        success_msg: "✅ UFW active & default deny"
+
+    - name: Assert SSH rate-limit rule present
+      ansible.builtin.assert:
+        that:
+          - "'OpenSSH LIMIT' in ufw_status.stdout"
+        fail_msg: "❌ SSH rate-limit rule missing"
+        success_msg: "✅ SSH rate-limit rule present"
+
+    - name: Check lightdm.conf for guest login
+      ansible.builtin.shell: grep '^allow-guest' /etc/lightdm/lightdm.conf
+      register: guest_line
+      changed_when: false
+
+    - name: Assert guest login disabled
+      ansible.builtin.assert:
+        that:
+          - "guest_line.stdout == 'allow-guest=false'"
+        fail_msg: "❌ Guest login still enabled or line missing"
+        success_msg: "✅ Guest login disabled"
